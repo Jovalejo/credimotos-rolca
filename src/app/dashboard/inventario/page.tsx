@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Filter } from 'lucide-react';
+import { PageHeader } from '@/components/shared/page-header';
+import { motoStatusBadgeClass } from '@/lib/status-badges';
 
 const mockMotos = [
   { id: 1, marca: 'Bera', modelo: 'SBR 150', ano: 2024, precioContado: 950, precioCredito: 1200, estado: 'DISPONIBLE', serial: 'VIN1234567890A1' },
@@ -26,12 +28,15 @@ export default function InventarioPage() {
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6 bg-gray-950 text-white min-h-screen">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-3xl font-bold tracking-tight">Inventario de Motocicletas</h2>
-        <Button className="bg-red-600 hover:bg-red-700 text-white">
-          <Plus className="mr-2 h-4 w-4" /> Nueva Moto
-        </Button>
-      </div>
+      <PageHeader
+        title="Inventario de Motocicletas"
+        className="mb-6"
+        actions={
+          <Button className="bg-red-600 hover:bg-red-700 text-white">
+            <Plus className="mr-2 h-4 w-4" /> Nueva Moto
+          </Button>
+        }
+      />
 
       <div className="flex items-center space-x-2 mb-6">
         <Filter className="h-4 w-4 text-gray-400" />
@@ -56,11 +61,7 @@ export default function InventarioPage() {
             <CardContent className="p-4 flex flex-col h-full">
               <div className="flex justify-between items-start mb-4">
                 <div className="text-4xl">🏍️</div>
-                <Badge className={
-                  moto.estado === 'DISPONIBLE' ? 'bg-green-600 hover:bg-green-700' : 
-                  moto.estado === 'RESERVADA' ? 'bg-yellow-600 hover:bg-yellow-700' : 
-                  'bg-red-600 hover:bg-red-700'
-                }>
+                <Badge className={motoStatusBadgeClass(moto.estado)}>
                   {moto.estado}
                 </Badge>
               </div>

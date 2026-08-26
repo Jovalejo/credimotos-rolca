@@ -6,8 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, User, Phone, MapPin, Mail, FileText } from 'lucide-react';
+import { User, Phone, MapPin, Mail, FileText } from 'lucide-react';
 import Link from 'next/link';
+import { PageHeader } from '@/components/shared/page-header';
+import { creditStatusBadgeClass } from '@/lib/status-badges';
+import { formatMoney } from '@/lib/utils';
 
 // Mock data
 const clientData = {
@@ -43,18 +46,13 @@ const pagosData = [
 export default function ClienteDetallePage({ params }: { params: { id: string } }) {
   return (
     <div className="flex-1 space-y-4 p-8 pt-6 bg-gray-950 text-white min-h-screen">
-      <div className="flex items-center space-x-4 mb-6">
-        <Button variant="ghost" size="icon" asChild className="text-gray-400 hover:text-white hover:bg-gray-800">
-          <Link href="/dashboard/clientes">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        </Button>
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">{clientData.nombre} {clientData.apellido}</h2>
-          <p className="text-gray-400">{clientData.cedula} • Registrado el {clientData.fechaRegistro}</p>
-        </div>
-        <Badge className="ml-auto bg-green-600 hover:bg-green-700">{clientData.estado}</Badge>
-      </div>
+      <PageHeader
+        title={`${clientData.nombre} ${clientData.apellido}`}
+        backHref="/dashboard/clientes"
+        subtitle={`${clientData.cedula} • Registrado el ${clientData.fechaRegistro}`}
+        className="mb-6"
+        actions={<Badge className="ml-auto bg-green-600 hover:bg-green-700">{clientData.estado}</Badge>}
+      />
 
       <Tabs defaultValue="info" className="space-y-4">
         <TabsList className="bg-gray-900 border border-gray-800">
@@ -145,12 +143,12 @@ export default function ClienteDetallePage({ params }: { params: { id: string } 
                     <TableRow key={credito.id} className="border-gray-800 hover:bg-gray-800/50">
                       <TableCell className="text-gray-300 font-medium">{credito.id}</TableCell>
                       <TableCell className="text-gray-300">{credito.moto}</TableCell>
-                      <TableCell className="text-gray-300">${credito.monto.toFixed(2)}</TableCell>
+                      <TableCell className="text-gray-300">{formatMoney(credito.monto)}</TableCell>
                       <TableCell className="text-gray-300">
                         {credito.cuotasPagadas} de {credito.cuotasTotal} cuotas
                       </TableCell>
                       <TableCell>
-                        <Badge className={credito.estado === 'ACTIVO' ? 'bg-green-600' : 'bg-blue-600'}>
+                        <Badge className={creditStatusBadgeClass(credito.estado)}>
                           {credito.estado}
                         </Badge>
                       </TableCell>
@@ -190,7 +188,7 @@ export default function ClienteDetallePage({ params }: { params: { id: string } 
                       <TableCell className="text-gray-300 font-medium">{pago.id}</TableCell>
                       <TableCell className="text-gray-300">{pago.fecha}</TableCell>
                       <TableCell className="text-gray-300">{pago.credito}</TableCell>
-                      <TableCell className="text-gray-300">${pago.monto.toFixed(2)}</TableCell>
+                      <TableCell className="text-gray-300">{formatMoney(pago.monto)}</TableCell>
                       <TableCell className="text-gray-300">{pago.metodo}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="bg-green-950 text-green-400 border-green-800">

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { Shield, Clock, Percent, Phone, MapPin, MessageCircle, ChevronDown, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { calculateFinancing } from "@/lib/calculations";
+import { formatMoney } from "@/lib/utils";
 
 const motorcycles = [
   { id: 1, brand: "Bera", model: "SBR", price: 950, emoji: "🏍️" },
@@ -23,18 +25,14 @@ export default function LandingPage() {
 
   const moto = motorcycles.find(m => m.id === selectedMoto) || motorcycles[0];
   const motoPrice = moto.price;
-  const downPayment = (motoPrice * downPaymentPercent) / 100;
-  const financedAmount = motoPrice - downPayment;
-  
-  // Basic mock calculation (interest rate 15% flat)
-  const totalToPay = financedAmount * 1.15;
-  
+
   let periods = 1;
   if (frequency === "semanal") periods = termMonths * 4;
   else if (frequency === "quincenal") periods = termMonths * 2;
   else if (frequency === "mensual") periods = termMonths;
 
-  const quota = totalToPay / periods;
+  // Basic mock calculation (interest rate 15% flat)
+  const { downPayment, financedAmount, installmentAmount: quota } = calculateFinancing(motoPrice, downPaymentPercent, periods, 15);
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
@@ -290,15 +288,15 @@ export default function LandingPage() {
               <div className="space-y-4 mb-8">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Precio de la moto:</span>
-                  <span className="font-semibold">${motoPrice.toFixed(2)}</span>
+                  <span className="font-semibold">{formatMoney(motoPrice)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Inicial a pagar ({downPaymentPercent}%):</span>
-                  <span className="font-semibold text-green-400">${downPayment.toFixed(2)}</span>
+                  <span className="font-semibold text-green-400">{formatMoney(downPayment)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Monto a financiar:</span>
-                  <span className="font-semibold">${financedAmount.toFixed(2)}</span>
+                  <span className="font-semibold">{formatMoney(financedAmount)}</span>
                 </div>
                 <div className="h-px bg-gray-800 my-4"></div>
                 <div className="flex justify-between items-end">
@@ -306,7 +304,7 @@ export default function LandingPage() {
                     <span className="text-gray-400 block mb-1">Cuota {frequency}:</span>
                     <span className="text-xs text-gray-500 block">Por {periods} cuotas</span>
                   </div>
-                  <span className="text-3xl font-bold text-red-500">${quota.toFixed(2)}</span>
+                  <span className="text-3xl font-bold text-red-500">{formatMoney(quota)}</span>
                 </div>
               </div>
 

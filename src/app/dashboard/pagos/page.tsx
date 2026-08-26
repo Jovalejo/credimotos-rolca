@@ -1,11 +1,16 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { Calendar, DollarSign, Wallet, CreditCard, Search, ArrowDownToLine, Smartphone } from 'lucide-react';
+import { NativeSelect } from '@/components/ui/native-select';
+import { StatCard } from '@/components/shared/stat-card';
+import { PageHeader } from '@/components/shared/page-header';
+import { SearchInput } from '@/components/shared/search-input';
+import { formatMoney } from '@/lib/utils';
+import { Calendar, DollarSign, Wallet, CreditCard, ArrowDownToLine, Smartphone } from 'lucide-react';
 
 const pagosMock = [
   { id: 'REC-5021', fecha: '25/08/2026', cliente: 'Carlos Mendoza', credito: 'CRD-1024', monto: 150.00, metodo: 'Pago Móvil', ref: '00123456', estado: 'Completado' },
@@ -35,57 +40,29 @@ const MetodoIcon = ({ metodo }: { metodo: string }) => {
 export default function PagosPage() {
   return (
     <div className="flex-1 space-y-4 p-8 pt-6 bg-gray-950 text-white min-h-screen">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-3xl font-bold tracking-tight">Historial de Pagos</h2>
-      </div>
+      <PageHeader title="Historial de Pagos" className="mb-6" />
 
       <div className="grid gap-4 md:grid-cols-3 mb-6">
-        <Card className="bg-gray-900 border-gray-800 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Cobrado (Mes)</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$8,350.00</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-900 border-gray-800 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pagos Hoy</CardTitle>
-            <Calendar className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">2</div>
-            <p className="text-xs text-gray-400 mt-1">$235.50</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-900 border-gray-800 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Promedio por Pago</CardTitle>
-            <CreditCard className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$116.96</div>
-          </CardContent>
-        </Card>
+        <StatCard title="Total Cobrado (Mes)" value="$8,350.00" icon={DollarSign} iconClassName="text-green-500" />
+        <StatCard
+          title="Pagos Hoy"
+          value="2"
+          icon={Calendar}
+          iconClassName="text-blue-500"
+          footer={<p className="text-xs text-gray-400 mt-1">$235.50</p>}
+        />
+        <StatCard title="Promedio por Pago" value="$116.96" icon={CreditCard} iconClassName="text-purple-500" />
       </div>
 
       <div className="flex gap-4 mb-4">
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-          <Input 
-            type="search" 
-            placeholder="Buscar por cliente, recibo o referencia..." 
-            className="pl-8 bg-gray-900 border-gray-800 text-white"
-          />
-        </div>
-        <select className="flex h-10 w-48 rounded-md border border-gray-800 bg-gray-900 px-3 py-2 text-sm text-white">
+        <SearchInput placeholder="Buscar por cliente, recibo o referencia..." />
+        <NativeSelect className="w-48 bg-gray-900">
           <option>Todos los métodos</option>
           <option>Efectivo USD</option>
           <option>Pago Móvil</option>
           <option>Zelle</option>
           <option>Binance USDT</option>
-        </select>
+        </NativeSelect>
         <Input type="date" className="bg-gray-900 border-gray-800 text-white w-40" />
       </div>
 
@@ -111,7 +88,7 @@ export default function PagosPage() {
                   <TableCell className="text-gray-300 py-3">{pago.fecha}</TableCell>
                   <TableCell className="text-gray-300 py-3">{pago.cliente}</TableCell>
                   <TableCell className="text-blue-400 py-3 hover:underline cursor-pointer">{pago.credito}</TableCell>
-                  <TableCell className="text-white font-medium py-3">${pago.monto.toFixed(2)}</TableCell>
+                  <TableCell className="text-white font-medium py-3">{formatMoney(pago.monto)}</TableCell>
                   <TableCell className="text-gray-300 py-3">
                     <div className="flex items-center">
                       <MetodoIcon metodo={pago.metodo} />

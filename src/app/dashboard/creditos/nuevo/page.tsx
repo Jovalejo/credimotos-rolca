@@ -5,10 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Check, ChevronRight } from 'lucide-react';
-import Link from 'next/link';
+import { Check, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { NativeSelect } from '@/components/ui/native-select';
+import { PageHeader } from '@/components/shared/page-header';
+import { calculateFinancing } from '@/lib/calculations';
+import { formatMoney } from '@/lib/utils';
 
 export default function NuevoCreditoPage() {
   const router = useRouter();
@@ -23,9 +26,11 @@ export default function NuevoCreditoPage() {
   const [cuotas, setCuotas] = useState(12);
 
   // Derived values
-  const montoInicial = (precioMoto * inicialPorcentaje) / 100;
-  const montoFinanciar = precioMoto - montoInicial;
-  const montoCuota = montoFinanciar / cuotas;
+  const {
+    downPayment: montoInicial,
+    financedAmount: montoFinanciar,
+    installmentAmount: montoCuota,
+  } = calculateFinancing(precioMoto, inicialPorcentaje, cuotas);
 
   const handleConfirm = () => {
     toast.success('Crédito generado exitosamente');
@@ -34,14 +39,7 @@ export default function NuevoCreditoPage() {
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6 bg-gray-950 text-white min-h-screen">
-      <div className="flex items-center space-x-4 mb-6">
-        <Button variant="ghost" size="icon" asChild className="text-gray-400 hover:text-white hover:bg-gray-800">
-          <Link href="/dashboard/creditos">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        </Button>
-        <h2 className="text-3xl font-bold tracking-tight">Nuevo Crédito</h2>
-      </div>
+      <PageHeader title="Nuevo Crédito" backHref="/dashboard/creditos" className="mb-6" />
 
       {/* Progress Bar */}
       <div className="flex items-center justify-between mb-8 max-w-3xl mx-auto">
@@ -70,8 +68,7 @@ export default function NuevoCreditoPage() {
                 <h3 className="text-xl font-semibold mb-4">Seleccionar Cliente</h3>
                 <div className="space-y-2">
                   <Label>Buscar Cliente</Label>
-                  <select 
-                    className="flex h-10 w-full rounded-md border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white"
+                  <NativeSelect
                     value={clienteId}
                     onChange={(e) => setClienteId(e.target.value)}
                   >
@@ -79,7 +76,7 @@ export default function NuevoCreditoPage() {
                     <option value="1">V-12345678 - Carlos Mendoza</option>
                     <option value="3">V-11223344 - José González</option>
                     <option value="6">E-84759234 - Juan García</option>
-                  </select>
+                  </NativeSelect>
                 </div>
               </div>
             )}
@@ -136,31 +133,29 @@ export default function NuevoCreditoPage() {
 
                   <div className="space-y-2">
                     <Label>Monto de Inicial (USD)</Label>
-                    <Input disabled value={`$${montoInicial.toFixed(2)}`} className="bg-gray-950 border-gray-800 text-gray-400" />
+                    <Input disabled value={formatMoney(montoInicial)} className="bg-gray-950 border-gray-800 text-gray-400" />
                   </div>
 
                   <div className="space-y-2">
                     <Label>Monto a Financiar (USD)</Label>
-                    <Input disabled value={`$${montoFinanciar.toFixed(2)}`} className="bg-gray-950 border-gray-800 font-bold text-white" />
+                    <Input disabled value={formatMoney(montoFinanciar)} className="bg-gray-950 border-gray-800 font-bold text-white" />
                   </div>
 
                   <div className="space-y-2">
                     <Label>Frecuencia de Pago</Label>
-                    <select 
-                      className="flex h-10 w-full rounded-md border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white"
+                    <NativeSelect
                       value={frecuencia}
                       onChange={(e) => setFrecuencia(e.target.value)}
                     >
                       <option value="Semanal">Semanal</option>
                       <option value="Quincenal">Quincenal</option>
                       <option value="Mensual">Mensual</option>
-                    </select>
+                    </NativeSelect>
                   </div>
 
                   <div className="space-y-2">
                     <Label>Número de Cuotas</Label>
-                    <select 
-                      className="flex h-10 w-full rounded-md border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white"
+                    <NativeSelect
                       value={cuotas}
                       onChange={(e) => setCuotas(Number(e.target.value))}
                     >
@@ -170,13 +165,13 @@ export default function NuevoCreditoPage() {
                       <option value="16">16 cuotas</option>
                       <option value="20">20 cuotas</option>
                       <option value="24">24 cuotas</option>
-                    </select>
+                    </NativeSelect>
                   </div>
                 </div>
 
                 <div className="bg-gray-950 p-4 rounded-lg border border-gray-800 mt-4 flex justify-between items-center">
                   <span className="text-gray-400">Monto de cuota calculada:</span>
-                  <span className="text-2xl font-bold text-red-500">${montoCuota.toFixed(2)}</span>
+                  <span className="text-2xl font-bold text-red-500">{formatMoney(montoCuota)}</span>
                 </div>
               </div>
             )}
@@ -200,19 +195,19 @@ export default function NuevoCreditoPage() {
                   <div className="grid grid-cols-2 gap-y-4">
                     <div>
                       <p className="text-sm text-gray-500">Precio Total</p>
-                      <p className="font-medium">${precioMoto.toFixed(2)}</p>
+                      <p className="font-medium">{formatMoney(precioMoto)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Inicial Pagada ({inicialPorcentaje}%)</p>
-                      <p className="font-medium">${montoInicial.toFixed(2)}</p>
+                      <p className="font-medium">{formatMoney(montoInicial)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Monto Financiado</p>
-                      <p className="font-medium">${montoFinanciar.toFixed(2)}</p>
+                      <p className="font-medium">{formatMoney(montoFinanciar)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-500">Plan de Pago</p>
-                      <p className="font-medium">{cuotas} cuotas {frecuencia.toLowerCase()}s de <span className="text-red-400 font-bold">${montoCuota.toFixed(2)}</span></p>
+                      <p className="font-medium">{cuotas} cuotas {frecuencia.toLowerCase()}s de <span className="text-red-400 font-bold">{formatMoney(montoCuota)}</span></p>
                     </div>
                   </div>
                 </div>
