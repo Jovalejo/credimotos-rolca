@@ -5,7 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Eye, Edit, Plus } from 'lucide-react';
+import { Eye, Edit, Plus } from 'lucide-react';
+import { NativeSelect } from '@/components/ui/native-select';
+import { PageHeader } from '@/components/shared/page-header';
+import { SearchInput } from '@/components/shared/search-input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useForm } from 'react-hook-form';
@@ -74,21 +77,15 @@ export default function ClientesPage() {
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6 bg-gray-950 text-white min-h-screen">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Gestión de Clientes</h2>
-      </div>
+      <PageHeader title="Gestión de Clientes" />
 
       <div className="flex items-center justify-between mb-4 gap-4">
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-          <Input 
-            type="search" 
-            placeholder="Buscar por nombre o cédula..." 
-            className="pl-8 bg-gray-900 border-gray-800 text-white w-full"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+        <SearchInput
+          placeholder="Buscar por nombre o cédula..."
+          className="w-full"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
         
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -104,12 +101,12 @@ export default function ClientesPage() {
               <div className="grid grid-cols-12 gap-4">
                 <div className="col-span-3 space-y-2">
                   <Label>Tipo Doc.</Label>
-                  <select {...register('tipoDoc')} className="flex h-10 w-full rounded-md border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white">
+                  <NativeSelect {...register('tipoDoc')}>
                     <option value="V">V</option>
                     <option value="E">E</option>
                     <option value="J">J</option>
                     <option value="P">P</option>
-                  </select>
+                  </NativeSelect>
                 </div>
                 <div className="col-span-9 space-y-2">
                   <Label>Número de Cédula</Label>

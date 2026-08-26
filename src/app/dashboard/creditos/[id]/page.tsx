@@ -8,8 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, CreditCard, DollarSign } from 'lucide-react';
-import Link from 'next/link';
+import { CreditCard, DollarSign } from 'lucide-react';
+import { NativeSelect } from '@/components/ui/native-select';
+import { StatCard } from '@/components/shared/stat-card';
+import { PageHeader } from '@/components/shared/page-header';
+import { cuotaStatusBadgeClass, cuotaRowClass } from '@/lib/status-badges';
+import { formatMoney } from '@/lib/utils';
 
 const creditDetail = {
   id: 'CRD-1024',
@@ -50,44 +54,18 @@ export default function DetalleCreditoPage({ params }: { params: { id: string } 
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6 bg-gray-950 text-white min-h-screen">
-      <div className="flex items-center space-x-4 mb-6">
-        <Button variant="ghost" size="icon" asChild className="text-gray-400 hover:text-white hover:bg-gray-800">
-          <Link href="/dashboard/creditos">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-        </Button>
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Crédito {creditDetail.id}</h2>
-          <p className="text-gray-400">{creditDetail.cliente} • {creditDetail.moto}</p>
-        </div>
-        <Badge className="ml-auto bg-green-600">{creditDetail.estado}</Badge>
-      </div>
+      <PageHeader
+        title={`Crédito ${creditDetail.id}`}
+        backHref="/dashboard/creditos"
+        subtitle={`${creditDetail.cliente} • ${creditDetail.moto}`}
+        className="mb-6"
+        actions={<Badge className="ml-auto bg-green-600">{creditDetail.estado}</Badge>}
+      />
 
       <div className="grid gap-4 md:grid-cols-4 mb-6">
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">Monto Financiado</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">${creditDetail.montoFinanciado.toFixed(2)}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">Cuota {creditDetail.frecuencia}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">${creditDetail.cuota.toFixed(2)}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">Saldo Restante</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">${(creditDetail.montoFinanciado - (4 * 70)).toFixed(2)}</div>
-          </CardContent>
-        </Card>
+        <StatCard title="Monto Financiado" titleClassName="text-gray-400" value={formatMoney(creditDetail.montoFinanciado)} />
+        <StatCard title={`Cuota ${creditDetail.frecuencia}`} titleClassName="text-gray-400" value={formatMoney(creditDetail.cuota)} />
+        <StatCard title="Saldo Restante" titleClassName="text-gray-400" value={formatMoney(creditDetail.montoFinanciado - (4 * 70))} />
         <Card className="bg-gray-900 border-gray-800 flex items-center justify-center">
           <CardContent className="p-4 w-full">
             <Dialog open={open} onOpenChange={setOpen}>
@@ -103,15 +81,14 @@ export default function DetalleCreditoPage({ params }: { params: { id: string } 
                 <div className="space-y-4 mt-4">
                   <div className="space-y-2">
                     <Label>Cuota a Pagar</Label>
-                    <select 
-                      className="flex h-10 w-full rounded-md border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white"
+                    <NativeSelect
                       value={selectedCuota}
                       onChange={(e) => setSelectedCuota(e.target.value)}
                     >
                       {amortizacion.filter(a => a.estado !== 'PAGADO').map(a => (
-                        <option key={a.nro} value={a.nro}>Cuota {a.nro} - ${a.monto.toFixed(2)} ({a.estado})</option>
+                        <option key={a.nro} value={a.nro}>Cuota {a.nro} - {formatMoney(a.monto)} ({a.estado})</option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </div>
                   <div className="space-y-2">
                     <Label>Monto (USD)</Label>
@@ -119,13 +96,13 @@ export default function DetalleCreditoPage({ params }: { params: { id: string } 
                   </div>
                   <div className="space-y-2">
                     <Label>Método de Pago</Label>
-                    <select className="flex h-10 w-full rounded-md border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white">
+                    <NativeSelect>
                       <option>Pago Móvil</option>
                       <option>Efectivo USD</option>
                       <option>Zelle</option>
                       <option>Binance USDT</option>
                       <option>Punto de Venta</option>
-                    </select>
+                    </NativeSelect>
                   </div>
                   <div className="space-y-2">
                     <Label>Número de Referencia</Label>
@@ -167,22 +144,15 @@ export default function DetalleCreditoPage({ params }: { params: { id: string } 
               {amortizacion.map((fila) => (
                 <TableRow 
                   key={fila.nro} 
-                  className={`border-gray-800 hover:bg-gray-800/50 ${
-                    fila.estado === 'PAGADO' ? 'bg-green-950/20' : 
-                    fila.estado === 'EN MORA' ? 'bg-red-950/20' : ''
-                  }`}
+                  className={`border-gray-800 hover:bg-gray-800/50 ${cuotaRowClass(fila.estado)}`}
                 >
                   <TableCell className="text-gray-300 font-medium">{fila.nro}</TableCell>
                   <TableCell className="text-gray-300">{fila.fechaVencimiento}</TableCell>
-                  <TableCell className="text-gray-300">${fila.monto.toFixed(2)}</TableCell>
-                  <TableCell className="text-gray-300">${fila.montoPagado.toFixed(2)}</TableCell>
-                  <TableCell className="text-gray-300">${fila.saldo.toFixed(2)}</TableCell>
+                  <TableCell className="text-gray-300">{formatMoney(fila.monto)}</TableCell>
+                  <TableCell className="text-gray-300">{formatMoney(fila.montoPagado)}</TableCell>
+                  <TableCell className="text-gray-300">{formatMoney(fila.saldo)}</TableCell>
                   <TableCell className="text-right">
-                    <Badge variant="outline" className={
-                      fila.estado === 'PAGADO' ? 'text-green-500 border-green-800 bg-green-950/50' : 
-                      fila.estado === 'EN MORA' ? 'text-red-500 border-red-800 bg-red-950/50' : 
-                      'text-gray-400 border-gray-700'
-                    }>
+                    <Badge variant="outline" className={cuotaStatusBadgeClass(fila.estado)}>
                       {fila.estado}
                     </Badge>
                   </TableCell>

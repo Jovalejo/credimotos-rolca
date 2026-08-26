@@ -7,6 +7,34 @@ export interface InstallmentScheduleItem {
   amount: number;
 }
 
+export interface FinancingBreakdown {
+  downPayment: number;
+  financedAmount: number;
+  totalToPay: number;
+  installmentAmount: number;
+}
+
+/**
+ * Computes the financing breakdown for a purchase:
+ * down payment, financed amount, total to pay (with flat interest) and installment amount.
+ */
+export function calculateFinancing(
+  price: number,
+  downPaymentPercent: number,
+  installments: number,
+  interestRate: number = 0
+): FinancingBreakdown {
+  const downPayment = (price * downPaymentPercent) / 100;
+  const financedAmount = price - downPayment;
+  const totalToPay = financedAmount * (1 + interestRate / 100);
+  return {
+    downPayment,
+    financedAmount,
+    totalToPay,
+    installmentAmount: totalToPay / installments,
+  };
+}
+
 /**
  * Generates an amortization schedule for a loan.
  * Assuming fixed interest has already been applied or simple calculation:

@@ -14,6 +14,10 @@ export function formatUSD(amount: number): string {
   }).format(amount)
 }
 
+export function formatMoney(amount: number): string {
+  return `$${amount.toFixed(2)}`
+}
+
 export function formatVES(amount: number): string {
   return new Intl.NumberFormat('es-VE', {
     style: 'currency',
