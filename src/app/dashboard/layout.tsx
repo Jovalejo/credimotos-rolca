@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -34,14 +35,29 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const handleLogout = () => {
+  useEffect(() => {
+    const loadUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setUserEmail(user?.email ?? "");
+    };
+
+    loadUser();
+  }, [supabase]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     toast.success("Sesión cerrada correctamente");
     router.push("/login");
+    router.refresh();
   };
 
   const getPageTitle = () => {
@@ -135,7 +151,7 @@ export default function DashboardLayout({
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex flex-col items-end mr-2">
               <span className="text-sm font-medium text-white">Administrador</span>
-              <span className="text-xs text-gray-400">admin@rolca.com</span>
+              <span className="text-xs text-gray-400">{userEmail}</span>
             </div>
             <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center border border-gray-700">
               <UserIcon className="w-5 h-5 text-gray-400" />

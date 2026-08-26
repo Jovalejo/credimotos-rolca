@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -21,16 +22,26 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Mock auth simulation
-    setTimeout(() => {
-      if (email === "admin@rolca.com" && password === "admin123") {
-        toast.success("Inicio de sesión exitoso");
-        router.push("/dashboard");
-      } else {
-        toast.error("Credenciales incorrectas. Intente nuevamente.");
-        setIsLoading(false);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        toast.error("No se pudo iniciar sesión. Verifique sus credenciales e intente nuevamente.");
+        return;
       }
-    }, 1000);
+
+      toast.success("Inicio de sesión exitoso");
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      toast.error("No se pudo iniciar sesión. Verifique sus credenciales e intente nuevamente.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -65,7 +76,6 @@ export default function LoginPage() {
                 <Input 
                   id="email" 
                   type="email" 
-                  placeholder="admin@rolca.com" 
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

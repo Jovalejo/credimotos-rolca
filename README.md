@@ -44,10 +44,9 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
-## 🔑 Acceso Demo
+## 🔐 Acceso
 
-- **Email:** admin@rolca.com
-- **Contraseña:** admin123
+Los usuarios del sistema se gestionan de forma segura mediante Supabase Auth.
 
 ## 📞 Contacto
 
