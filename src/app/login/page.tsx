@@ -1,19 +1,17 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -21,92 +19,121 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Mock auth simulation
-    setTimeout(() => {
-      if (email === "admin@rolca.com" && password === "admin123") {
-        toast.success("Inicio de sesión exitoso");
-        router.push("/dashboard");
-      } else {
-        toast.error("Credenciales incorrectas. Intente nuevamente.");
-        setIsLoading(false);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
       }
-    }, 1000);
+
+      router.push('/dashboard');
+    } catch (error) {
+      toast.error('Credenciales incorrectas');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Link href="/" className="inline-flex items-center text-sm text-gray-400 hover:text-white mb-8 transition-colors">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Volver al inicio
-        </Link>
-        
-        <Card className="bg-gray-900 border-gray-800 text-white shadow-2xl">
-          <CardHeader className="space-y-4 flex flex-col items-center pt-8">
-            <div className="w-[120px] h-[120px] relative rounded-full overflow-hidden border-2 border-red-600/30">
-              <Image 
-                src="/logo.jpg" 
-                alt="Logo ROLCA" 
-                fill 
+    <div className="flex min-h-screen bg-slate-900">
+      {/* Form Panel */}
+      <div className="flex w-full md:w-[450px] flex-col justify-center px-8 sm:px-12 bg-[#17181C]/95 backdrop-blur z-10 shadow-2xl">
+        <div className="mx-auto w-full max-w-sm space-y-8">
+          <div className="flex flex-col items-center space-y-4 text-center">
+            <div className="relative h-[150px] w-[150px] overflow-hidden rounded-full border-4 border-red-600 bg-white shadow-lg">
+              <Image
+                src="/logo.jpg"
+                alt="CrediMotos ROLCA Logo"
+                fill
                 className="object-cover"
+                priority
               />
             </div>
-            <div className="text-center space-y-1">
-              <CardTitle className="text-2xl font-bold tracking-tight">Iniciar Sesión</CardTitle>
-              <CardDescription className="text-gray-400">
-                Accede al panel de administración
-              </CardDescription>
+            <div className="space-y-1">
+              <h1 className="text-3xl font-bold tracking-tight text-white">
+                CREDIMOTOS ROLCA
+              </h1>
+              <p className="text-gray-400">
+                Sistema de Gestión de Créditos
+              </p>
             </div>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-300">Correo Electrónico</Label>
-                <Input 
-                  id="email" 
-                  type="email" 
-                  placeholder="admin@rolca.com" 
-                  required
+                <Label htmlFor="email" className="text-gray-200">
+                  Correo Electrónico
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="admin@credimotosrolca.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-gray-950 border-gray-800 focus-visible:ring-red-600 text-white"
+                  className="bg-white text-slate-900 border-0 focus-visible:ring-red-600"
+                  required
                 />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-gray-300">Contraseña</Label>
+                  <Label htmlFor="password" className="text-gray-200">
+                    Contraseña
+                  </Label>
                 </div>
-                <Input 
-                  id="password" 
-                  type="password" 
-                  required
+                <Input
+                  id="password"
+                  type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-gray-950 border-gray-800 focus-visible:ring-red-600 text-white"
+                  className="bg-white text-slate-900 border-0 focus-visible:ring-red-600"
+                  required
                 />
               </div>
-              <Button 
-                type="submit" 
-                className="w-full bg-red-600 hover:bg-red-700 text-white mt-4 h-11"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Iniciando...
-                  </>
-                ) : (
-                  "Iniciar Sesión"
-                )}
-              </Button>
-            </form>
-          </CardContent>
-          <CardFooter className="flex justify-center pb-8">
-            <p className="text-xs text-gray-500">
-              Uso exclusivo para personal autorizado.
-            </p>
-          </CardFooter>
-        </Card>
+            </div>
+            <Button
+              type="submit"
+              className="w-full bg-[#A6182A] hover:bg-red-700 text-white transition-colors"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Iniciando...
+                </span>
+              ) : (
+                'Iniciar Sesión'
+              )}
+            </Button>
+          </form>
+          
+          <div className="text-center text-xs text-gray-500 font-medium">
+            Panamericana Barrio El Topón | Tel: 0426-4345704
+          </div>
+        </div>
+      </div>
+
+      {/* Decorative Background */}
+      <div 
+        className="hidden md:flex flex-1 items-center justify-center relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, #17181C 0%, #17181C 50%, #A6182A 100%)'
+        }}
+      >
+        <div className="absolute opacity-10 text-[30rem] select-none rotate-12 transform -translate-y-1/4">
+          🏍️
+        </div>
+        <div className="z-10 text-center px-12">
+          <h2 className="text-5xl font-bold text-white mb-6 tracking-wide drop-shadow-lg">
+            IMPULSANDO TUS SUEÑOS
+          </h2>
+          <p className="text-xl text-gray-300 max-w-lg mx-auto">
+            La forma más rápida y segura de gestionar créditos y cobranzas.
+          </p>
+        </div>
       </div>
     </div>
   );

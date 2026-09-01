@@ -1,166 +1,190 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { Users, DollarSign, AlertTriangle, FileText, Activity } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DollarSign, TrendingUp, AlertTriangle, Bike, ArrowUp, ArrowDown, Minus } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-
-const barData = [
-  { name: 'Ene', total: 4500 },
-  { name: 'Feb', total: 5200 },
-  { name: 'Mar', total: 6100 },
-  { name: 'Abr', total: 5800 },
-  { name: 'May', total: 7300 },
-  { name: 'Jun', total: 8350 },
-];
-
-const areaData = [
-  { name: 'Ene', activos: 45 },
-  { name: 'Feb', activos: 52 },
-  { name: 'Mar', activos: 68 },
-  { name: 'Abr', activos: 85 },
-  { name: 'May', activos: 102 },
-  { name: 'Jun', activos: 125 },
-];
-
-const pagosRecientes = [
-  { id: 1, fecha: '25/08/2026', cliente: 'Carlos Mendoza', monto: 120.00, metodo: 'Pago Móvil', estado: 'Completado' },
-  { id: 2, fecha: '25/08/2026', cliente: 'María Rodríguez', monto: 85.50, metodo: 'Efectivo USD', estado: 'Completado' },
-  { id: 3, fecha: '24/08/2026', cliente: 'José González', monto: 200.00, metodo: 'Zelle', estado: 'Pendiente' },
-  { id: 4, fecha: '24/08/2026', cliente: 'Ana Silva', monto: 50.00, metodo: 'Pago Móvil', estado: 'Completado' },
-  { id: 5, fecha: '23/08/2026', cliente: 'Luis Pérez', monto: 150.00, metodo: 'Binance USDT', estado: 'Completado' },
-];
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import Link from 'next/link';
+import { getDashboardStats } from '@/lib/supabase/queries/reportes';
+import { getAbonos } from '@/lib/supabase/queries/abonos';
 
 export default function DashboardPage() {
-  return (
-    <div className="flex-1 space-y-4 p-8 pt-6 bg-gray-950 text-white min-h-screen">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Panel de Control</h2>
-      </div>
+  const [stats, setStats] = useState<any>(null);
+  const [recentPayments, setRecentPayments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-gray-900 border-gray-800 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cartera Activa</CardTitle>
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        const [statsData, abonosResult] = await Promise.all([
+          getDashboardStats(),
+          getAbonos({}, 1, 5)
+        ]);
+        setStats(statsData);
+        setRecentPayments(abonosResult.data || []);
+      } catch (error) {
+        toast.error('Error al cargar los datos del dashboard');
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6 bg-[var(--rolca-paper-soft)] min-h-screen">
+        <Skeleton className="h-10 w-48 mb-6" />
+        <Skeleton className="h-16 w-full mb-6" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full" />
+          ))}
+        </div>
+        <Skeleton className="h-64 w-full mt-8" />
+      </div>
+    );
+  }
+
+  const hasAtrasadas = stats?.cuotasAtrasadas > 0;
+
+  return (
+    <div className="p-6 space-y-6 bg-[var(--rolca-paper-soft)] min-h-screen text-[#17181C]">
+      <h1 className="text-3xl font-bold flex items-center gap-2">
+        🏍️ Dashboard
+      </h1>
+
+      {hasAtrasadas ? (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md shadow-sm flex justify-between items-center">
+          <div className="flex items-center">
+            <AlertTriangle className="h-6 w-6 text-red-500 mr-3" />
+            <p className="text-red-700 font-medium">
+              🚨 Tienes {stats.clientesAtrasados} clientes con cuotas atrasadas. Monto atrasado: ${stats.montoAtrasado?.toFixed(2)}
+            </p>
+          </div>
+          <Link href="/dashboard/cobranza">
+            <Button variant="destructive" size="sm">Ver Cobranza</Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-md shadow-sm">
+          <p className="text-green-700 font-medium">🟢 Todo al día</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="bg-white shadow-sm border-gray-100">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Total Clientes</CardTitle>
+            <Users className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.totalClientes || 0}</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-white shadow-sm border-gray-100">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Abonaron Hoy</CardTitle>
+            <Users className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.clientesAbonaronHoy || 0}</div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white shadow-sm border-gray-100">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Recaudado Hoy</CardTitle>
             <DollarSign className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$45,600.00</div>
-            <p className="text-xs text-green-500 flex items-center mt-1">
-              <ArrowUp className="h-3 w-3 mr-1" /> +12% respecto al mes anterior
-            </p>
+            <div className="text-2xl font-bold">${stats?.recaudadoHoy?.toFixed(2) || '0.00'}</div>
           </CardContent>
         </Card>
-        <Card className="bg-gray-900 border-gray-800 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cobros del Mes</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
+
+        <Card className="bg-white shadow-sm border-gray-100">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Abonos Hoy</CardTitle>
+            <FileText className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$8,350.00</div>
-            <p className="text-xs text-green-500 flex items-center mt-1">
-              <ArrowUp className="h-3 w-3 mr-1" /> +8% respecto al mes anterior
-            </p>
+            <div className="text-2xl font-bold">{stats?.cantidadAbonosHoy || 0}</div>
           </CardContent>
         </Card>
-        <Card className="bg-gray-900 border-gray-800 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cuotas Vencidas</CardTitle>
+
+        <Card className="bg-white shadow-sm border-gray-100">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Cuotas Atrasadas</CardTitle>
             <AlertTriangle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-red-500 flex items-center mt-1">
-              <ArrowDown className="h-3 w-3 mr-1" /> Requiere atención inmediata
-            </p>
+            <div className="text-2xl font-bold text-red-600">{stats?.cuotasAtrasadas || 0}</div>
           </CardContent>
         </Card>
-        <Card className="bg-gray-900 border-gray-800 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Motos Disponibles</CardTitle>
-            <Bike className="h-4 w-4 text-gray-400" />
+
+        <Card className="bg-white shadow-sm border-gray-100">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Monto Atrasado</CardTitle>
+            <DollarSign className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">15</div>
-            <p className="text-xs text-gray-400 flex items-center mt-1">
-              <Minus className="h-3 w-3 mr-1" /> Inventario actual
-            </p>
+            <div className="text-2xl font-bold text-red-600">${stats?.montoAtrasado?.toFixed(2) || '0.00'}</div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white shadow-sm border-gray-100 col-span-2 md:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Saldo Pendiente Total</CardTitle>
+            <Activity className="h-4 w-4 text-amber-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-600">${stats?.saldoPendienteTotal?.toFixed(2) || '0.00'}</div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4 bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-white">Cobros Mensuales</CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={barData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-                <XAxis dataKey="name" stroke="#9CA3AF" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#9CA3AF" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
-                <Tooltip cursor={{fill: '#1f2937'}} contentStyle={{backgroundColor: '#111827', border: 'none', color: '#fff'}} />
-                <Bar dataKey="total" fill="#DC2626" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card className="col-span-3 bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle className="text-white">Créditos Activos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <AreaChart data={areaData}>
-                <defs>
-                  <linearGradient id="colorActivos" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#DC2626" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#DC2626" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-                <XAxis dataKey="name" stroke="#9CA3AF" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#9CA3AF" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{backgroundColor: '#111827', border: 'none', color: '#fff'}} />
-                <Area type="monotone" dataKey="activos" stroke="#DC2626" fillOpacity={1} fill="url(#colorActivos)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="bg-gray-900 border-gray-800">
+      <Card className="bg-white shadow-sm border-gray-100">
         <CardHeader>
-          <CardTitle className="text-white">Pagos Recientes</CardTitle>
+          <CardTitle>Últimos Abonos Registrados</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow className="border-gray-800 hover:bg-transparent">
-                <TableHead className="text-gray-400">Fecha</TableHead>
-                <TableHead className="text-gray-400">Cliente</TableHead>
-                <TableHead className="text-gray-400">Monto</TableHead>
-                <TableHead className="text-gray-400">Método</TableHead>
-                <TableHead className="text-gray-400">Estado</TableHead>
+              <TableRow>
+                <TableHead>Fecha</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Monto</TableHead>
+                <TableHead>Método</TableHead>
+                <TableHead>Referencia</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pagosRecientes.map((pago) => (
-                <TableRow key={pago.id} className="border-gray-800 hover:bg-gray-800/50">
-                  <TableCell className="text-gray-300 font-medium">{pago.fecha}</TableCell>
-                  <TableCell className="text-gray-300">{pago.cliente}</TableCell>
-                  <TableCell className="text-gray-300">${pago.monto.toFixed(2)}</TableCell>
-                  <TableCell className="text-gray-300">{pago.metodo}</TableCell>
-                  <TableCell>
-                    <Badge variant={pago.estado === 'Completado' ? 'default' : 'secondary'} className={pago.estado === 'Completado' ? 'bg-green-600 hover:bg-green-700' : 'bg-yellow-600 hover:bg-yellow-700'}>
-                      {pago.estado}
-                    </Badge>
+              {recentPayments.length > 0 ? (
+                recentPayments.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell>{new Date(p.fecha).toLocaleDateString('es-VE')}</TableCell>
+                    <TableCell className="font-medium">{p.cliente_nombre}</TableCell>
+                    <TableCell>${p.monto.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">{p.metodo_pago.replace('_', ' ')}</Badge>
+                    </TableCell>
+                    <TableCell className="text-gray-500">{p.referencia || '-'}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-4 text-gray-500">
+                    No hay abonos recientes
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>

@@ -1,13 +1,28 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Sora, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+});
+
+const sora = Sora({
+  subsets: ["latin"],
+  variable: "--font-sora",
+  weight: ["400", "500", "600", "700"],
+});
+
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains",
+  weight: ["400", "500"],
+});
 
 export const metadata: Metadata = {
-  title: "CrediMotos ROLCA C.A. - Sistema de Gestión de Créditos",
-  description: "Sistema de gestión de créditos y financiamiento de motocicletas CrediMotos ROLCA C.A.",
+  title: "CREDIMOTOS ROLCA — Sistema de Gestión",
+  description: "Sistema de gestión de créditos y cobranzas para CREDIMOTOS ROLCA C.A.",
 };
 
 export default function RootLayout({
@@ -16,10 +31,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="dark">
-      <body className={`${inter.className} min-h-screen bg-gray-950 text-gray-100 antialiased`}>
+    <html lang="es">
+      <body className={`${inter.variable} ${sora.variable} ${jetbrains.variable} font-sans`}>
         {children}
-        <Toaster theme="dark" position="top-center" richColors />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            style: {
+              fontFamily: 'var(--font-inter)',
+              borderRadius: '12px',
+              boxShadow: '0 1px 2px rgba(23,24,28,0.04), 0 8px 24px rgba(23,24,28,0.06)',
+            },
+          }}
+        />
       </body>
     </html>
   );

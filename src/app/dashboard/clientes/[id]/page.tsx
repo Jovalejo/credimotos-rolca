@@ -1,210 +1,196 @@
 'use client';
 
-import React from 'react';
-import { Button } from '@/components/ui/button';
+import React, { useEffect, useState } from 'react';
+import { ArrowLeft, Plus, Trash2, Calendar, FileText, CheckCircle, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, User, Phone, MapPin, Mail, FileText } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { getClienteById } from '@/lib/supabase/queries/clientes';
+import { getCuotasByCliente } from '@/lib/supabase/queries/cuotas';
+import { getAbonosByCliente, deleteAbono } from '@/lib/supabase/queries/abonos';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
-// Mock data
-const clientData = {
-  id: 1,
-  cedula: 'V-12345678',
-  nombre: 'Carlos',
-  apellido: 'Mendoza',
-  telefono: '0414-1234567',
-  telefonoAlt: '0212-9876543',
-  email: 'carlos.mendoza@email.com',
-  direccion: 'Av. Principal, Edificio El Parque, Apto 4B, Caracas',
-  fechaRegistro: '15/01/2026',
-  estado: 'Activo',
-  fiador: {
-    nombre: 'Roberto Mendoza',
-    telefono: '0412-5556677',
-    cedula: 'V-9876543'
-  }
-};
+export default function FichaClientePage() {
+  const { id } = useParams();
+  const router = useRouter();
+  
+  const [cliente, setCliente] = useState<any>(null);
+  const [cuotas, setCuotas] = useState<any[]>([]);
+  const [abonos, setAbonos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const creditosData = [
-  { id: 'CRD-1024', moto: 'Bera SBR 150', monto: 1200, cuota: 150, cuotasPagadas: 4, cuotasTotal: 8, estado: 'ACTIVO' },
-  { id: 'CRD-0850', moto: 'Empire EK Express', monto: 950, cuota: 237.5, cuotasPagadas: 4, cuotasTotal: 4, estado: 'COMPLETADO' }
-];
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [cData, qData, aData] = await Promise.all([
+        getClienteById(id as string),
+        getCuotasByCliente(id as string),
+        getAbonosByCliente(id as string)
+      ]);
+      setCliente(cData);
+      setCuotas(qData || []);
+      setAbonos(aData || []);
+    } catch (error) {
+      toast.error('Error al cargar la ficha del cliente');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-const pagosData = [
-  { id: 'REC-5021', fecha: '25/08/2026', credito: 'CRD-1024', monto: 150.00, metodo: 'Pago Móvil', estado: 'Completado' },
-  { id: 'REC-4890', fecha: '25/07/2026', credito: 'CRD-1024', monto: 150.00, metodo: 'Efectivo USD', estado: 'Completado' },
-  { id: 'REC-4750', fecha: '25/06/2026', credito: 'CRD-1024', monto: 150.00, metodo: 'Zelle', estado: 'Completado' },
-  { id: 'REC-4610', fecha: '25/05/2026', credito: 'CRD-1024', monto: 150.00, metodo: 'Transferencia', estado: 'Completado' },
-];
+  useEffect(() => {
+    if (id) loadData();
+  }, [id]);
 
-export default function ClienteDetallePage({ params }: { params: { id: string } }) {
+  const handleDeleteAbono = async (abonoId: string) => {
+    try {
+      await deleteAbono(abonoId);
+      toast.success('Abono eliminado exitosamente');
+      loadData();
+    } catch (error) {
+      toast.error('Error al eliminar abono');
+    }
+  };
+
+  if (loading) return <div className="p-6"><Skeleton className="h-screen w-full" /></div>;
+  if (!cliente) return <div className="p-6 text-center text-red-500">Cliente no encontrado</div>;
+
+  const totalAbonado = abonos.reduce((sum, acc) => sum + acc.monto, 0);
+  const saldoPendiente = cliente.total_moto - totalAbonado;
+  const progreso = Math.min(100, Math.max(0, (totalAbonado / cliente.total_moto) * 100));
+  const pagadas = cuotas.filter(c => c.estado === 'pagada').length;
+  const pendientes = cuotas.length - pagadas;
+  const ultimoAbono = abonos.length > 0 ? new Date(abonos[0].fecha).toLocaleDateString('es-VE') : 'Ninguno';
+
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6 bg-gray-950 text-white min-h-screen">
-      <div className="flex items-center space-x-4 mb-6">
-        <Button variant="ghost" size="icon" asChild className="text-gray-400 hover:text-white hover:bg-gray-800">
-          <Link href="/dashboard/clientes">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+    <div className="p-6 space-y-6 bg-[var(--rolca-paper-soft)] min-h-screen text-[#17181C] pb-24">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" onClick={() => router.push('/dashboard/clientes')} className="p-0 h-10 w-10">
+          <ArrowLeft className="h-6 w-6 text-gray-500" />
         </Button>
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">{clientData.nombre} {clientData.apellido}</h2>
-          <p className="text-gray-400">{clientData.cedula} • Registrado el {clientData.fechaRegistro}</p>
+          <h1 className="text-3xl font-bold">{cliente.nombre}</h1>
+          <p className="text-gray-500">C.I: {cliente.cedula} • Tel: {cliente.telefono || 'N/A'}</p>
         </div>
-        <Badge className="ml-auto bg-green-600 hover:bg-green-700">{clientData.estado}</Badge>
+        <div className="ml-auto">
+          <Badge className={`text-sm px-3 py-1 ${cliente.estado === 'activo' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+            {cliente.estado.toUpperCase()}
+          </Badge>
+        </div>
       </div>
 
-      <Tabs defaultValue="info" className="space-y-4">
-        <TabsList className="bg-gray-900 border border-gray-800">
-          <TabsTrigger value="info" className="data-[state=active]:bg-gray-800 data-[state=active]:text-white">Información Personal</TabsTrigger>
-          <TabsTrigger value="creditos" className="data-[state=active]:bg-gray-800 data-[state=active]:text-white">Créditos</TabsTrigger>
-          <TabsTrigger value="pagos" className="data-[state=active]:bg-gray-800 data-[state=active]:text-white">Pagos</TabsTrigger>
+      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm font-medium text-gray-500">Progreso de Pago</span>
+          <span className="text-sm font-bold text-gray-700">{progreso.toFixed(1)}%</span>
+        </div>
+        <Progress value={progreso} className="h-3 bg-gray-100" />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="bg-white shadow-sm"><CardContent className="p-4"><p className="text-sm text-gray-500">Precio Moto</p><p className="text-xl font-bold">${cliente.total_moto.toFixed(2)}</p></CardContent></Card>
+        <Card className="bg-white shadow-sm"><CardContent className="p-4"><p className="text-sm text-gray-500">Total Abonado</p><p className="text-xl font-bold text-green-600">${totalAbonado.toFixed(2)}</p></CardContent></Card>
+        <Card className="bg-white shadow-sm"><CardContent className="p-4"><p className="text-sm text-gray-500">Saldo Pendiente</p><p className="text-xl font-bold text-red-600">${saldoPendiente.toFixed(2)}</p></CardContent></Card>
+        <Card className="bg-white shadow-sm"><CardContent className="p-4"><p className="text-sm text-gray-500">Cuota Semanal</p><p className="text-xl font-bold">${cliente.monto_cuota.toFixed(2)}</p></CardContent></Card>
+        <Card className="bg-white shadow-sm"><CardContent className="p-4"><p className="text-sm text-gray-500">Cuotas Pagadas</p><p className="text-xl font-bold text-blue-600">{pagadas}</p></CardContent></Card>
+        <Card className="bg-white shadow-sm"><CardContent className="p-4"><p className="text-sm text-gray-500">Cuotas Pendientes</p><p className="text-xl font-bold text-amber-600">{pendientes}</p></CardContent></Card>
+        <Card className="bg-white shadow-sm"><CardContent className="p-4"><p className="text-sm text-gray-500">Último Abono</p><p className="text-xl font-bold">{ultimoAbono}</p></CardContent></Card>
+        <Card className="bg-white shadow-sm"><CardContent className="p-4"><p className="text-sm text-gray-500">Moto</p><p className="text-sm font-bold truncate mt-1">{cliente.moto || 'N/A'}</p></CardContent></Card>
+      </div>
+
+      <Tabs defaultValue="cuotas" className="w-full">
+        <TabsList className="bg-white border-b w-full justify-start rounded-none h-auto p-0 gap-6">
+          <TabsTrigger value="cuotas" className="data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 rounded-none pb-3 pt-2 text-md">Control de Cuotas</TabsTrigger>
+          <TabsTrigger value="abonos" className="data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 rounded-none pb-3 pt-2 text-md">Historial de Abonos</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="info">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="bg-gray-900 border-gray-800 text-white">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center"><User className="mr-2 h-5 w-5 text-gray-400"/> Datos del Cliente</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-y-4">
-                  <div>
-                    <p className="text-sm text-gray-400">Cédula</p>
-                    <p className="font-medium">{clientData.cedula}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Nombre Completo</p>
-                    <p className="font-medium">{clientData.nombre} {clientData.apellido}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400 flex items-center"><Phone className="mr-1 h-3 w-3"/> Teléfono Principal</p>
-                    <p className="font-medium">{clientData.telefono}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400 flex items-center"><Phone className="mr-1 h-3 w-3"/> Teléfono Alternativo</p>
-                    <p className="font-medium">{clientData.telefonoAlt}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-sm text-gray-400 flex items-center"><Mail className="mr-1 h-3 w-3"/> Correo Electrónico</p>
-                    <p className="font-medium">{clientData.email}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-sm text-gray-400 flex items-center"><MapPin className="mr-1 h-3 w-3"/> Dirección</p>
-                    <p className="font-medium">{clientData.direccion}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gray-900 border-gray-800 text-white">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center"><FileText className="mr-2 h-5 w-5 text-gray-400"/> Datos del Fiador</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 gap-y-4">
-                  <div>
-                    <p className="text-sm text-gray-400">Nombre Completo</p>
-                    <p className="font-medium">{clientData.fiador.nombre}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400">Cédula</p>
-                    <p className="font-medium">{clientData.fiador.cedula}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-400 flex items-center"><Phone className="mr-1 h-3 w-3"/> Teléfono</p>
-                    <p className="font-medium">{clientData.fiador.telefono}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="creditos">
-          <Card className="bg-gray-900 border-gray-800">
-            <CardHeader>
-              <CardTitle className="text-white">Historial de Créditos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-gray-800 hover:bg-transparent">
-                    <TableHead className="text-gray-400">N° Crédito</TableHead>
-                    <TableHead className="text-gray-400">Motocicleta</TableHead>
-                    <TableHead className="text-gray-400">Monto Financiado</TableHead>
-                    <TableHead className="text-gray-400">Progreso</TableHead>
-                    <TableHead className="text-gray-400">Estado</TableHead>
-                    <TableHead className="text-gray-400 text-right">Acción</TableHead>
+        <TabsContent value="cuotas" className="pt-4">
+          <Card className="bg-white shadow-sm">
+            <Table>
+              <TableHeader><TableRow><TableHead>N°</TableHead><TableHead>Fecha Límite</TableHead><TableHead>Monto</TableHead><TableHead>Pagado</TableHead><TableHead>Saldo</TableHead><TableHead>Estado</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {cuotas.map((c) => (
+                  <TableRow key={c.id} className={
+                    c.estado === 'pagada' ? 'bg-green-50/50' : c.estado === 'atrasada' ? 'bg-red-50/50' : c.estado === 'parcial' ? 'bg-amber-50/50' : ''
+                  }>
+                    <TableCell className="font-medium">{c.numero_cuota}</TableCell>
+                    <TableCell>{new Date(c.fecha_limite).toLocaleDateString('es-VE')}</TableCell>
+                    <TableCell>${c.monto_esperado.toFixed(2)}</TableCell>
+                    <TableCell>${(c.monto_pagado || 0).toFixed(2)}</TableCell>
+                    <TableCell>${((c.monto_esperado) - (c.monto_pagado || 0)).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={`
+                        ${c.estado === 'pagada' ? 'bg-green-100 text-green-800' : ''}
+                        ${c.estado === 'atrasada' ? 'bg-red-100 text-red-800' : ''}
+                        ${c.estado === 'parcial' ? 'bg-amber-100 text-amber-800' : ''}
+                        ${c.estado === 'pendiente' ? 'bg-gray-100 text-gray-800' : ''}
+                      `}>{c.estado.toUpperCase()}</Badge>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {creditosData.map((credito) => (
-                    <TableRow key={credito.id} className="border-gray-800 hover:bg-gray-800/50">
-                      <TableCell className="text-gray-300 font-medium">{credito.id}</TableCell>
-                      <TableCell className="text-gray-300">{credito.moto}</TableCell>
-                      <TableCell className="text-gray-300">${credito.monto.toFixed(2)}</TableCell>
-                      <TableCell className="text-gray-300">
-                        {credito.cuotasPagadas} de {credito.cuotasTotal} cuotas
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={credito.estado === 'ACTIVO' ? 'bg-green-600' : 'bg-blue-600'}>
-                          {credito.estado}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" asChild className="text-blue-400 hover:text-blue-300">
-                          <Link href={`/dashboard/creditos/${credito.id}`}>Ver Detalle</Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
+                ))}
+              </TableBody>
+            </Table>
           </Card>
         </TabsContent>
-        
-        <TabsContent value="pagos">
-          <Card className="bg-gray-900 border-gray-800">
-            <CardHeader>
-              <CardTitle className="text-white">Historial de Pagos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-gray-800 hover:bg-transparent">
-                    <TableHead className="text-gray-400">N° Recibo</TableHead>
-                    <TableHead className="text-gray-400">Fecha</TableHead>
-                    <TableHead className="text-gray-400">Crédito</TableHead>
-                    <TableHead className="text-gray-400">Monto</TableHead>
-                    <TableHead className="text-gray-400">Método</TableHead>
-                    <TableHead className="text-gray-400">Estado</TableHead>
+
+        <TabsContent value="abonos" className="pt-4">
+          <Card className="bg-white shadow-sm">
+            <div className="p-4 flex justify-end">
+              <Link href={`/dashboard/abonos/registrar?cliente=${cliente.id}`}>
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                  <Plus className="mr-2 h-4 w-4" /> Registrar Abono
+                </Button>
+              </Link>
+            </div>
+            <Table>
+              <TableHeader><TableRow><TableHead>Fecha</TableHead><TableHead>Monto</TableHead><TableHead>Método</TableHead><TableHead>Referencia</TableHead><TableHead>Obs.</TableHead><TableHead>Acciones</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {abonos.length > 0 ? abonos.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell>{new Date(a.fecha).toLocaleDateString('es-VE')}</TableCell>
+                    <TableCell className="font-bold text-green-600">${a.monto.toFixed(2)}</TableCell>
+                    <TableCell className="capitalize">{a.metodo_pago.replace('_', ' ')}</TableCell>
+                    <TableCell>{a.referencia || '-'}</TableCell>
+                    <TableCell className="text-gray-500 text-sm">{a.observacion || '-'}</TableCell>
+                    <TableCell>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" /></Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-white">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Eliminar este abono?</AlertDialogTitle>
+                            <AlertDialogDescription>Esta acción es irreversible y recalculará las cuotas pagadas.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteAbono(a.id)} className="bg-red-600 hover:bg-red-700 text-white">Eliminar</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagosData.map((pago) => (
-                    <TableRow key={pago.id} className="border-gray-800 hover:bg-gray-800/50">
-                      <TableCell className="text-gray-300 font-medium">{pago.id}</TableCell>
-                      <TableCell className="text-gray-300">{pago.fecha}</TableCell>
-                      <TableCell className="text-gray-300">{pago.credito}</TableCell>
-                      <TableCell className="text-gray-300">${pago.monto.toFixed(2)}</TableCell>
-                      <TableCell className="text-gray-300">{pago.metodo}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-green-950 text-green-400 border-green-800">
-                          {pago.estado}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
+                )) : <TableRow><TableCell colSpan={6} className="text-center py-6 text-gray-500">No hay abonos registrados</TableCell></TableRow>}
+              </TableBody>
+            </Table>
           </Card>
         </TabsContent>
       </Tabs>
+
+      <div className="fixed bottom-6 right-6 md:hidden">
+        <Link href={`/dashboard/abonos/registrar?cliente=${cliente.id}`}>
+          <Button size="icon" className="h-14 w-14 rounded-full bg-blue-600 hover:bg-blue-700 shadow-lg text-white">
+            <Plus className="h-6 w-6" />
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 }

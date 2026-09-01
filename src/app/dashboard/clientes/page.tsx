@@ -1,170 +1,208 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import React, { useEffect, useState } from 'react';
+import { Search, Plus, Eye } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, Eye, Edit, Plus } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import Link from 'next/link';
 import { toast } from 'sonner';
+import Link from 'next/link';
+import { getClientes, createCliente } from '@/lib/supabase/queries/clientes';
+import { generarCuotas } from '@/lib/supabase/queries/cuotas';
 
 const clientSchema = z.object({
-  tipoDoc: z.string().min(1),
-  cedula: z.string().min(6),
-  nombre: z.string().min(2),
-  apellido: z.string().min(2),
-  telefono: z.string().min(10),
-  telefonoAlt: z.string().optional(),
-  email: z.string().email().optional().or(z.literal('')),
-  direccion: z.string().min(5),
-  nombreFiador: z.string().min(2),
-  telefonoFiador: z.string().min(10),
+  nombre: z.string().min(1, 'Requerido'),
+  cedula: z.string().min(1, 'Requerido'),
+  telefono: z.string().optional(),
+  direccion: z.string().optional(),
+  moto: z.string().optional(),
+  marca: z.string().optional(),
+  modelo: z.string().optional(),
+  anio: z.string().optional(),
+  total_moto: z.coerce.number().min(0.01, 'Debe ser mayor a 0'),
+  cantidad_cuotas: z.coerce.number().min(1, 'Mínimo 1 cuota'),
+  monto_cuota: z.coerce.number().min(0.01, 'Debe ser mayor a 0'),
+  fecha_inicio: z.string().min(1, 'Requerido'),
+  dia_pago: z.coerce.number().min(0).max(6),
+  tolerancia_dias: z.coerce.number().min(0).default(0),
+  observaciones: z.string().optional(),
 });
 
 type ClientForm = z.infer<typeof clientSchema>;
 
-const mockClients = [
-  { id: 1, cedula: 'V-12345678', nombre: 'Carlos', apellido: 'Mendoza', telefono: '0414-1234567', creditosActivos: 1, estado: 'Activo' },
-  { id: 2, cedula: 'V-87654321', nombre: 'María', apellido: 'Rodríguez', telefono: '0424-7654321', creditosActivos: 0, estado: 'Sin crédito' },
-  { id: 3, cedula: 'V-11223344', nombre: 'José', apellido: 'González', telefono: '0412-1122334', creditosActivos: 2, estado: 'Activo' },
-  { id: 4, cedula: 'V-44332211', nombre: 'Ana', apellido: 'Silva', telefono: '0416-4433221', creditosActivos: 1, estado: 'Activo' },
-  { id: 5, cedula: 'V-99887766', nombre: 'Luis', apellido: 'Pérez', telefono: '0414-9988776', creditosActivos: 0, estado: 'Sin crédito' },
-  { id: 6, cedula: 'E-84759234', nombre: 'Juan', apellido: 'García', telefono: '0424-8475923', creditosActivos: 1, estado: 'Activo' },
-  { id: 7, cedula: 'V-15673892', nombre: 'Carmen', apellido: 'López', telefono: '0412-1567389', creditosActivos: 0, estado: 'Sin crédito' },
-  { id: 8, cedula: 'V-20348576', nombre: 'Pedro', apellido: 'Martínez', telefono: '0414-2034857', creditosActivos: 1, estado: 'Activo' },
-];
-
 export default function ClientesPage() {
-  const [clients, setClients] = useState(mockClients);
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [open, setOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<ClientForm>({
     resolver: zodResolver(clientSchema),
-    defaultValues: { tipoDoc: 'V' }
+    defaultValues: {
+      dia_pago: 1,
+      tolerancia_dias: 0,
+      total_moto: 0,
+      cantidad_cuotas: 1,
+      monto_cuota: 0
+    }
   });
 
-  const onSubmit = (data: ClientForm) => {
-    const newClient = {
-      id: clients.length + 1,
-      cedula: `${data.tipoDoc}-${data.cedula}`,
-      nombre: data.nombre,
-      apellido: data.apellido,
-      telefono: data.telefono,
-      creditosActivos: 0,
-      estado: 'Sin crédito'
-    };
-    setClients([newClient, ...clients]);
-    setOpen(false);
-    reset();
-    toast.success('Cliente creado exitosamente');
+  const fetchClientes = async (search = '') => {
+    try {
+      setLoading(true);
+      const result = await getClientes(search);
+      setClientes(result.data || []);
+    } catch (error) {
+      toast.error('Error al cargar clientes');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredClients = clients.filter(c => 
-    c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.cedula.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      fetchClientes(searchTerm);
+    }, 300);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
+
+  const onSubmit = async (data: ClientForm) => {
+    try {
+      setIsSubmitting(true);
+      const clienteData = {
+        ...data,
+        anio: data.anio ? Number(data.anio) : undefined,
+        total_moto: Number(data.total_moto),
+        cantidad_cuotas: Number(data.cantidad_cuotas),
+        monto_cuota: Number(data.monto_cuota),
+        dia_pago: Number(data.dia_pago),
+        tolerancia_dias: Number(data.tolerancia_dias || 0),
+      };
+      const newCliente = await createCliente(clienteData);
+      if (newCliente?.id) {
+        await generarCuotas(newCliente.id, Number(data.cantidad_cuotas), Number(data.monto_cuota), data.fecha_inicio, Number(data.dia_pago));
+        toast.success('Cliente y cuotas generados exitosamente');
+        setIsDialogOpen(false);
+        reset();
+        fetchClientes(searchTerm);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Error al crear cliente');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const getStatusBadge = (estado: string) => {
+    switch (estado) {
+      case 'activo': return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Activo</Badge>;
+      case 'en_mora': return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">En Mora</Badge>;
+      case 'pagado': return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Pagado</Badge>;
+      default: return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100 capitalize">{estado}</Badge>;
+    }
+  };
 
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6 bg-gray-950 text-white min-h-screen">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Gestión de Clientes</h2>
-      </div>
-
-      <div className="flex items-center justify-between mb-4 gap-4">
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
-          <Input 
-            type="search" 
-            placeholder="Buscar por nombre o cédula..." 
-            className="pl-8 bg-gray-900 border-gray-800 text-white w-full"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+    <div className="p-6 space-y-6 bg-[var(--rolca-paper-soft)] min-h-screen text-[#17181C]">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h1 className="text-3xl font-bold">Gestión de Clientes</h1>
         
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-red-600 hover:bg-red-700 text-white">
               <Plus className="mr-2 h-4 w-4" /> Nuevo Cliente
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-gray-900 text-white border-gray-800 max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
             <DialogHeader>
-              <DialogTitle>Añadir Nuevo Cliente</DialogTitle>
+              <DialogTitle>Registrar Nuevo Cliente</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
-              <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-3 space-y-2">
-                  <Label>Tipo Doc.</Label>
-                  <select {...register('tipoDoc')} className="flex h-10 w-full rounded-md border border-gray-800 bg-gray-950 px-3 py-2 text-sm text-white">
-                    <option value="V">V</option>
-                    <option value="E">E</option>
-                    <option value="J">J</option>
-                    <option value="P">P</option>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Nombre Completo *</label>
+                  <Input {...register('nombre')} placeholder="Ej. Juan Pérez" />
+                  {errors.nombre && <span className="text-xs text-red-500">{errors.nombre.message}</span>}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Cédula *</label>
+                  <Input {...register('cedula')} placeholder="Ej. V-12345678" />
+                  {errors.cedula && <span className="text-xs text-red-500">{errors.cedula.message}</span>}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Teléfono</label>
+                  <Input {...register('telefono')} placeholder="Ej. 0414-1234567" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Dirección</label>
+                  <Input {...register('direccion')} placeholder="Ej. Centro, Calle 1" />
+                </div>
+                
+                <div className="col-span-full border-t pt-4 mt-2">
+                  <h3 className="font-medium text-gray-700 mb-4">Datos del Financiamiento</h3>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Moto / Descripción</label>
+                  <Input {...register('moto')} placeholder="Ej. Bera SBR 2024" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Precio Total ($) *</label>
+                  <Input type="number" step="0.01" {...register('total_moto')} />
+                  {errors.total_moto && <span className="text-xs text-red-500">{errors.total_moto.message}</span>}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Cantidad de Cuotas *</label>
+                  <Input type="number" {...register('cantidad_cuotas')} />
+                  {errors.cantidad_cuotas && <span className="text-xs text-red-500">{errors.cantidad_cuotas.message}</span>}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Monto por Cuota ($) *</label>
+                  <Input type="number" step="0.01" {...register('monto_cuota')} />
+                  {errors.monto_cuota && <span className="text-xs text-red-500">{errors.monto_cuota.message}</span>}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Fecha de Inicio *</label>
+                  <Input type="date" {...register('fecha_inicio')} />
+                  {errors.fecha_inicio && <span className="text-xs text-red-500">{errors.fecha_inicio.message}</span>}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Día de Pago Semanal</label>
+                  <select {...register('dia_pago')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+                    <option value="0">Domingo</option>
+                    <option value="1">Lunes</option>
+                    <option value="2">Martes</option>
+                    <option value="3">Miércoles</option>
+                    <option value="4">Jueves</option>
+                    <option value="5">Viernes</option>
+                    <option value="6">Sábado</option>
                   </select>
                 </div>
-                <div className="col-span-9 space-y-2">
-                  <Label>Número de Cédula</Label>
-                  <Input {...register('cedula')} className="bg-gray-950 border-gray-800 text-white" />
-                  {errors.cedula && <span className="text-red-500 text-xs">{errors.cedula.message}</span>}
-                </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Nombre</Label>
-                  <Input {...register('nombre')} className="bg-gray-950 border-gray-800 text-white" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Apellido</Label>
-                  <Input {...register('apellido')} className="bg-gray-950 border-gray-800 text-white" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Teléfono</Label>
-                  <Input {...register('telefono')} className="bg-gray-950 border-gray-800 text-white" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Teléfono Alternativo (Opcional)</Label>
-                  <Input {...register('telefonoAlt')} className="bg-gray-950 border-gray-800 text-white" />
-                </div>
-                <div className="space-y-2 col-span-2">
-                  <Label>Email (Opcional)</Label>
-                  <Input type="email" {...register('email')} className="bg-gray-950 border-gray-800 text-white" />
-                </div>
-                <div className="space-y-2 col-span-2">
-                  <Label>Dirección Completa</Label>
-                  <Input {...register('direccion')} className="bg-gray-950 border-gray-800 text-white" />
-                </div>
+              <div className="space-y-2 mt-4">
+                <label className="text-sm font-medium">Observaciones</label>
+                <textarea {...register('observaciones')} className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background" placeholder="Notas adicionales..." />
               </div>
-              
-              <div className="border-t border-gray-800 pt-4 mt-4 grid grid-cols-2 gap-4">
-                <div className="space-y-2 col-span-2">
-                  <h4 className="font-medium text-sm text-gray-300">Datos del Fiador</h4>
-                </div>
-                <div className="space-y-2">
-                  <Label>Nombre del Fiador</Label>
-                  <Input {...register('nombreFiador')} className="bg-gray-950 border-gray-800 text-white" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Teléfono del Fiador</Label>
-                  <Input {...register('telefonoFiador')} className="bg-gray-950 border-gray-800 text-white" />
-                </div>
-              </div>
-              
-              <div className="flex justify-end pt-4">
-                <Button type="button" variant="outline" className="mr-2 border-gray-700 text-gray-300 hover:bg-gray-800" onClick={() => setOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" className="bg-red-600 hover:bg-red-700 text-white">
-                  Guardar Cliente
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                <Button type="submit" className="bg-red-600 hover:bg-red-700" disabled={isSubmitting}>
+                  {isSubmitting ? 'Guardando...' : 'Guardar Cliente'}
                 </Button>
               </div>
             </form>
@@ -172,54 +210,74 @@ export default function ClientesPage() {
         </Dialog>
       </div>
 
-      <div className="border border-gray-800 rounded-md">
-        <Table>
-          <TableHeader className="bg-gray-900/50">
-            <TableRow className="border-gray-800 hover:bg-transparent">
-              <TableHead className="text-gray-400">Cédula</TableHead>
-              <TableHead className="text-gray-400">Nombre Completo</TableHead>
-              <TableHead className="text-gray-400">Teléfono</TableHead>
-              <TableHead className="text-gray-400 text-center">Créditos Activos</TableHead>
-              <TableHead className="text-gray-400">Estado</TableHead>
-              <TableHead className="text-gray-400 text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredClients.map((cliente) => (
-              <TableRow key={cliente.id} className="border-gray-800 hover:bg-gray-800/50">
-                <TableCell className="text-gray-300 font-medium">{cliente.cedula}</TableCell>
-                <TableCell className="text-gray-300">{cliente.nombre} {cliente.apellido}</TableCell>
-                <TableCell className="text-gray-300">{cliente.telefono}</TableCell>
-                <TableCell className="text-gray-300 text-center">{cliente.creditosActivos}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className={cliente.estado === 'Activo' ? 'bg-green-950 text-green-400 border-green-800' : 'bg-gray-800 text-gray-400 border-gray-700'}>
-                    {cliente.estado}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="icon" asChild className="text-gray-400 hover:text-white hover:bg-gray-800">
-                      <Link href={`/dashboard/clientes/${cliente.id}`}>
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-gray-800">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredClients.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-gray-400">
-                  No se encontraron clientes.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <Card className="bg-white shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center space-x-2 mb-4 max-w-sm">
+            <Search className="h-4 w-4 text-gray-400" />
+            <Input 
+              placeholder="Buscar por nombre, cédula o teléfono..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="border-gray-200"
+            />
+          </div>
+
+          <div className="rounded-md border border-gray-100 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50">
+                  <TableHead>Cédula</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Teléfono</TableHead>
+                  <TableHead>Moto</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Saldo</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : clientes.length > 0 ? (
+                  clientes.map((cliente) => (
+                    <TableRow key={cliente.id} className="hover:bg-gray-50/50">
+                      <TableCell className="font-medium">{cliente.cedula}</TableCell>
+                      <TableCell>{cliente.nombre}</TableCell>
+                      <TableCell>{cliente.telefono || '-'}</TableCell>
+                      <TableCell>{cliente.moto || '-'}</TableCell>
+                      <TableCell>{getStatusBadge(cliente.estado)}</TableCell>
+                      <TableCell>${(cliente.total_moto - (cliente.total_abonado || 0)).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">
+                        <Link href={`/dashboard/clientes/${cliente.id}`}>
+                          <Button variant="ghost" size="icon" className="hover:bg-gray-100 text-gray-600">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                      No se encontraron clientes
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
