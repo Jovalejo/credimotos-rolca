@@ -40,8 +40,8 @@ export default function LoginPage() {
 
       if (data?.session) {
         toast.success('Bienvenido a CrediMotos ROLCA');
-        router.push('/dashboard');
-        router.refresh();
+        window.location.href = '/dashboard';
+        return;
       }
     } catch (error: any) {
       console.error('Unexpected error:', error);
