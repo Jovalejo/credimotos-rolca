@@ -20,18 +20,32 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        throw error;
+        console.error('Login error:', error);
+        if (error.message.includes('Invalid login')) {
+          toast.error('Email o contraseña incorrectos');
+        } else if (error.message.includes('Email not confirmed')) {
+          toast.error('Email no confirmado. Revisa tu correo.');
+        } else {
+          toast.error(error.message || 'Error al iniciar sesión');
+        }
+        setIsLoading(false);
+        return;
       }
 
-      router.push('/dashboard');
-    } catch (error) {
-      toast.error('Credenciales incorrectas');
+      if (data?.session) {
+        toast.success('Bienvenido a CrediMotos ROLCA');
+        router.push('/dashboard');
+        router.refresh();
+      }
+    } catch (error: any) {
+      console.error('Unexpected error:', error);
+      toast.error('Error de conexión. Verifica tu internet.');
     } finally {
       setIsLoading(false);
     }
