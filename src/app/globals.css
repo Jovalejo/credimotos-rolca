@@ -50,7 +50,7 @@
     -moz-osx-font-smoothing: grayscale;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-sora), system-ui, sans-serif;
+    font-family: 'Sora', system-ui, sans-serif;
     letter-spacing: -0.02em;
     color: var(--rolca-ink);
   }
@@ -92,7 +92,7 @@
 
 /* Monospace for financial data */
 .font-mono-tabular {
-  font-family: var(--font-jetbrains), 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
 }
